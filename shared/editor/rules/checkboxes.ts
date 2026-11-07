@@ -24,13 +24,23 @@ function isListItem(token: Token): boolean {
 
 function isListOpen(token: Token): boolean {
   return (
-    token.type === "bullet_list_open" || token.type === "ordered_list_open"
+    token.type === "bullet_list_open" ||
+    token.type === "ordered_list_open" ||
+    // A list that an earlier match in this pass already converted is still a
+    // boundary for the search below – it is the list that contains the item
+    // currently being processed, so the search must stop there rather than
+    // continue into a neighbouring list.
+    token.type === "checkbox_list_open"
   );
 }
 
 function isListClose(token: Token): boolean {
   return (
-    token.type === "bullet_list_close" || token.type === "ordered_list_close"
+    token.type === "bullet_list_close" ||
+    token.type === "ordered_list_close" ||
+    // Counterpart of isListOpen: stop at the close of an already converted
+    // list instead of renaming the close of the following list.
+    token.type === "checkbox_list_close"
   );
 }
 
@@ -78,13 +88,17 @@ export default function markdownItCheckbox(md: MarkdownIt): void {
         const listLevel = tokens[i - 2].level - 1;
         for (let k = i - 3; k >= 0; k--) {
           if (tokens[k].level === listLevel && isListOpen(tokens[k])) {
-            tokens[k].type = "checkbox_list_open";
+            if (tokens[k].type !== "checkbox_list_open") {
+              tokens[k].type = "checkbox_list_open";
+            }
             break;
           }
         }
         for (let k = i + 1; k < tokens.length; k++) {
           if (tokens[k].level === listLevel && isListClose(tokens[k])) {
-            tokens[k].type = "checkbox_list_close";
+            if (tokens[k].type !== "checkbox_list_close") {
+              tokens[k].type = "checkbox_list_close";
+            }
             break;
           }
         }
